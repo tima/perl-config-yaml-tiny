@@ -1,9 +1,7 @@
-Config-YAML
+Config-YAML-Tiny
 
-This is a wrapper around the YAML module to enable simple reading and
-writing of YAML-formatted configuration files. It supports multiple
-input files and integration with Getopt::Long to handle all your
-configuration needs.
+This is a wrapper around the YAML::Tiny module to enable simple reading and
+writing of YAML-formatted configuration files. 
 
 INSTALLATION
 
@@ -17,9 +15,10 @@ To install this module, run the following commands:
 
 COPYRIGHT AND LICENCE
 
-Put the correct copyright and licence information here.
+Config::YAML:Tiny is Copyright 2010, Timothy Appnel, 
+tima@cpan.org. All rights reserved.
 
-Copyright (C) 2004 Shawn Boyette
+Oringinally based on Config::YAML by 2004 Shawn Boyette.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
