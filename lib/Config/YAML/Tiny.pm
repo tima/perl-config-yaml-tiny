@@ -13,37 +13,39 @@ sub new {
     my %priv  = ();
     my %args  = ();
 
-    die("Can't create Config::YAML object with no config file.\n") 
-        if ($_[0] ne "config");
-    shift; $priv{config} = shift;
+    die("Can't create Config::YAML object with no config file.\n")
+      if ( $_[0] ne "config" );
+    shift;
+    $priv{config} = shift;
 
-    if (@_ && ($_[0] eq "output")) { shift; $priv{output} = shift; }
-    if (@_ && ($_[0] eq "strict")) { shift; $priv{strict} = shift; }
+    if ( @_ && ( $_[0] eq "output" ) ) { shift; $priv{output} = shift; }
+    if ( @_ && ( $_[0] eq "strict" ) ) { shift; $priv{strict} = shift; }
 
-    my $self = bless { _infile   => $priv{config},
-                       _outfile  => $priv{output}   || $priv{config},
-                       _strict   => $priv{strict}   || 0,
-                     }, $class;
+    my $self = bless {
+                       _infile  => $priv{config},
+                       _outfile => $priv{output} || $priv{config},
+                       _strict  => $priv{strict} || 0,
+    }, $class;
 
     %args = @_;
-    @{$self}{keys %args} = values %args;
+    @{$self}{ keys %args } = values %args;
 
     $self->read;
     return $self;
-}
+} ## end sub new
 
 sub Config::YAML::Tiny::AUTOLOAD {
     no strict 'refs';
-    my ($self, $newval) = @_;
+    my ( $self, $newval ) = @_;
 
-    if ($AUTOLOAD =~ /.*::get_(\w+)/) {
+    if ( $AUTOLOAD =~ /.*::get_(\w+)/ ) {
         my $attr = $1;
-        return undef if (!defined $self->{$attr});
+        return undef if ( !defined $self->{$attr} );
         *{$AUTOLOAD} = sub { return $_[0]->{$attr} };
         return $self->{$attr};
     }
 
-    if ($AUTOLOAD =~ /.*::set_(\w+)/) {
+    if ( $AUTOLOAD =~ /.*::set_(\w+)/ ) {
         my $attr = $1;
         *{$AUTOLOAD} = sub { $_[0]->{$attr} = $_[1]; return };
         $self->{$attr} = $newval;
@@ -52,28 +54,30 @@ sub Config::YAML::Tiny::AUTOLOAD {
 }
 
 sub fold {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
+
     # add check for HASHREF when strict mode is implemented
-    @{$self}{keys %{$data}} = values %{$data};
+    @{$self}{ keys %{$data} } = values %{$data};
 }
 
 sub read {
-    my ($self, $file) = @_;
+    my ( $self, $file ) = @_;
     $self->{_infile} = $file if $file;
 
     my $yaml = '';
     my $line;
 
-    open(FH,'<',$self->{_infile}) or die "Can't open $self->{_infile}; $!\n";
-    while ($line = <FH>) {
-        next if ($line =~ /^\-{3,}/);
-        next if ($line =~ /^#/);
-        next if ($line =~ /^$/);
+    open( FH, '<', $self->{_infile} )
+      or die "Can't open $self->{_infile}; $!\n";
+    while ( $line = <FH> ) {
+        next if ( $line =~ /^\-{3,}/ );
+        next if ( $line =~ /^#/ );
+        next if ( $line =~ /^$/ );
         $yaml .= $line;
     }
     close(FH);
     my $tmpyaml = Load($yaml);
-    @{$self}{keys %{$tmpyaml}} = values %{$tmpyaml}; # woo, hash slice
+    @{$self}{ keys %{$tmpyaml} } = values %{$tmpyaml};    # woo, hash slice
 }
 
 sub write {
@@ -81,27 +85,28 @@ sub write {
     my %tmpyaml;
 
     # strip out internal state parameters
-    while(my($k,$v) = each%{$self}) {
-        $tmpyaml{$k} = $v unless ($k =~ /^_/);
+    while ( my ( $k, $v ) = each %{$self} ) {
+        $tmpyaml{$k} = $v unless ( $k =~ /^_/ );
     }
 
     # write data out to file
-    open(FH,'>',$self->{_outfile}) or die "Can't open $self->{_outfile}: $!\n";
-    print FH Dump(\%tmpyaml);
+    open( FH, '>', $self->{_outfile} )
+      or die "Can't open $self->{_outfile}: $!\n";
+    print FH Dump( \%tmpyaml );
     close(FH);
 }
 
 sub get {
-    my ($self, $arg) = @_;
+    my ( $self, $arg ) = @_;
     return $self->{$arg};
 }
 
 sub set {
-    my ($self, $key, $val) = @_;
+    my ( $self, $key, $val ) = @_;
     $self->{$key} = $val;
 }
 
-1; # End of Config::YAML
+1;    # End of Config::YAML
 
 __END__
 
