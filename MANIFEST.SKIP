@@ -14,8 +14,7 @@
 
 # Build process and distribution files
 ^MANIFEST
-Makefile
-Makefile.PL
+Makefile$
 ^_build
 ^build
 ^Build.*$
