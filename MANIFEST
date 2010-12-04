@@ -3,7 +3,7 @@ MANIFEST
 META.yml # Will be created by "make dist"
 Makefile.PL
 README
-lib/Config/YAML.pm
+lib/Config/YAML/Tiny.pm
 t/00.load.t
 t/01.init-read.t
 t/02.read-overlay.t

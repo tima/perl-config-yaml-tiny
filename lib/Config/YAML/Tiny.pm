@@ -1,14 +1,114 @@
 package Config::YAML::Tiny;
-
-use warnings;
 use strict;
+use warnings;
+
 use YAML::Tiny qw(Load Dump);
 
 use vars qw( $AUTOLOAD );
 
+our $VERSION = '1.42.0';
+
+sub new {
+    my $class = shift;
+    my %priv  = ();
+    my %args  = ();
+
+    die("Can't create Config::YAML object with no config file.\n") 
+        if ($_[0] ne "config");
+    shift; $priv{config} = shift;
+
+    if (@_ && ($_[0] eq "output")) { shift; $priv{output} = shift; }
+    if (@_ && ($_[0] eq "strict")) { shift; $priv{strict} = shift; }
+
+    my $self = bless { _infile   => $priv{config},
+                       _outfile  => $priv{output}   || $priv{config},
+                       _strict   => $priv{strict}   || 0,
+                     }, $class;
+
+    %args = @_;
+    @{$self}{keys %args} = values %args;
+
+    $self->read;
+    return $self;
+}
+
+sub Config::YAML::Tiny::AUTOLOAD {
+    no strict 'refs';
+    my ($self, $newval) = @_;
+
+    if ($AUTOLOAD =~ /.*::get_(\w+)/) {
+        my $attr = $1;
+        return undef if (!defined $self->{$attr});
+        *{$AUTOLOAD} = sub { return $_[0]->{$attr} };
+        return $self->{$attr};
+    }
+
+    if ($AUTOLOAD =~ /.*::set_(\w+)/) {
+        my $attr = $1;
+        *{$AUTOLOAD} = sub { $_[0]->{$attr} = $_[1]; return };
+        $self->{$attr} = $newval;
+        return;
+    }
+}
+
+sub fold {
+    my ($self, $data) = @_;
+    # add check for HASHREF when strict mode is implemented
+    @{$self}{keys %{$data}} = values %{$data};
+}
+
+sub read {
+    my ($self, $file) = @_;
+    $self->{_infile} = $file if $file;
+
+    my $yaml = '';
+    my $line;
+
+    open(FH,'<',$self->{_infile}) or die "Can't open $self->{_infile}; $!\n";
+    while ($line = <FH>) {
+        next if ($line =~ /^\-{3,}/);
+        next if ($line =~ /^#/);
+        next if ($line =~ /^$/);
+        $yaml .= $line;
+    }
+    close(FH);
+    my $tmpyaml = Load($yaml);
+    @{$self}{keys %{$tmpyaml}} = values %{$tmpyaml}; # woo, hash slice
+}
+
+sub write {
+    my $self = shift;
+    my %tmpyaml;
+
+    # strip out internal state parameters
+    while(my($k,$v) = each%{$self}) {
+        $tmpyaml{$k} = $v unless ($k =~ /^_/);
+    }
+
+    # write data out to file
+    open(FH,'>',$self->{_outfile}) or die "Can't open $self->{_outfile}: $!\n";
+    print FH Dump(\%tmpyaml);
+    close(FH);
+}
+
+sub get {
+    my ($self, $arg) = @_;
+    return $self->{$arg};
+}
+
+sub set {
+    my ($self, $key, $val) = @_;
+    $self->{$key} = $val;
+}
+
+1; # End of Config::YAML
+
+__END__
+
 =head1 NAME
 
-Config::YAML - Simple configuration automation
+Config::YAML::Tiny - simple reading and writing of YAML-formatted
+configuration files using YAML::Tiny
 
 =head1 VERSION
 
@@ -16,17 +116,9 @@ Version 1.42.0
 
 =cut
 
-our $VERSION = '1.42.0';
-
 =head1 SYNOPSIS
 
-Config::YAML is a somewhat object-oriented wrapper around the YAML
-module which makes reading and writing configuration files
-simple. Handling multiple config files (e.g. system and per-user
-configuration, or a gallery app with per-directory configuration) is a
-snap.
-
-    use Config::YAML;
+    use Config::YAML::Tiny;
 
     # create Config::YAML object with any desired initial options
     # parameters; load system config; set alternate output file
@@ -58,30 +150,36 @@ snap.
 
 =cut
 
+=head1 DESCRIPTION
 
-
+Config::YAML is a somewhat object-oriented wrapper around
+the YAML module which makes reading and writing
+configuration files simple. Handling multiple config files
+(e.g. system and per-user configuration, or a gallery app
+with per-directory configuration) is a snap.
 
 =head1 METHODS
 
 =head2 new
 
-Creates a new Config::YAML object.
+Creates a new Config::YAML::Tiny object.
 
-    my $c = Config::YAML->new( config => initial_config, 
+    my $c = Config::YAML::Tiny->new( config => initial_config, 
                                output => output_config
                              );
 
-The C<config> parameter specifies the file to be read in during object
-creation. It is required, and must be the first parameter given. If
-the second parameter is C<output>, then it is used to specify the file
-to which configuration data will later be written out.  This
-positional dependancy makes it possible to have parameters named
-"config" and/or "output" in config files.
+The C<config> parameter specifies the file to be read in
+during object creation. It is required, and must be the
+first parameter given. If the second parameter is C<output>,
+then it is used to specify the file to which configuration
+data will later be written out.  This positional dependancy
+makes it possible to have parameters named "config" and/or
+"output" in config files.
 
-Initial configuration values can be passed as subsequent parameters to
-the constructor:
+Initial configuration values can be passed as subsequent
+parameters to the constructor:
 
-    my $c = Config::YAML->new( config => "~/.foorc",
+    my $c = Config::YAML::Tiny->new( config => "~/.foorc",
                                foo    => "abc",
                                bar    => "xyz",
                                baz    => [ 1, 2, 3 ],
@@ -89,35 +187,12 @@ the constructor:
 
 =cut
 
-sub new {
-    my $class = shift;
-    my %priv  = ();
-    my %args  = ();
-
-    die("Can't create Config::YAML object with no config file.\n") 
-        if ($_[0] ne "config");
-    shift; $priv{config} = shift;
-
-    if (@_ && ($_[0] eq "output")) { shift; $priv{output} = shift; }
-    if (@_ && ($_[0] eq "strict")) { shift; $priv{strict} = shift; }
-
-    my $self = bless { _infile   => $priv{config},
-                       _outfile  => $priv{output}   || $priv{config},
-                       _strict   => $priv{strict}   || 0,
-                     }, $class;
-
-    %args = @_;
-    @{$self}{keys %args} = values %args;
-
-    $self->read;
-    return $self;
-}
-
 =head2 get_*/set_*
 
-If you'd prefer not to directly molest the object to store and
-retrieve configuration data, autoloading methods of the forms
-C<get_[param]> and C<set_[param]> are provided. Continuing from the
+If you'd prefer not to directly molest the object to store
+and retrieve configuration data (something I B<highly
+recommend>, autoloading methods of the forms C<get_[param]>
+and C<set_[param]> are provided. Continuing from the
 previous example:
 
     print $c->get_foo;      # prints "abc"
@@ -129,29 +204,10 @@ previous example:
 
 =cut
 
-sub Config::YAML::Tiny::AUTOLOAD {
-    no strict 'refs';
-    my ($self, $newval) = @_;
-
-    if ($AUTOLOAD =~ /.*::get_(\w+)/) {
-        my $attr = $1;
-        return undef if (!defined $self->{$attr});
-        *{$AUTOLOAD} = sub { return $_[0]->{$attr} };
-        return $self->{$attr};
-    }
-
-    if ($AUTOLOAD =~ /.*::set_(\w+)/) {
-        my $attr = $1;
-        *{$AUTOLOAD} = sub { $_[0]->{$attr} = $_[1]; return };
-        $self->{$attr} = $newval;
-        return;
-    }
-}
-
 =head2 fold
 
-Convenience method for folding multiple values into the config object
-at once. Requires a hashref as its argument.
+Convenience method for folding multiple values into the
+config object at once. Requires a hashref as its argument.
 
     $prefs{theme}  = param(theme);
     $prefs{format} = param(format);
@@ -163,73 +219,34 @@ at once. Requires a hashref as its argument.
 
 =cut
 
-sub fold {
-    my ($self, $data) = @_;
-    # add check for HASHREF when strict mode is implemented
-    @{$self}{keys %{$data}} = values %{$data};
-}
-
 =head2 read
 
 Imports a YAML-formatted config file.
 
     $c->read('/usr/share/fooapp/fooconf');
 
-C<read()> is called at object creation and imports the file specified
-by C<< new(config=>) >>, so there is no need to call it manually
-unless multiple config files exist.
+C<read()> is called at object creation and imports the file
+specified by C<< new(config=>) >>, so there is no need to
+call it manually unless multiple config files exist.
 
 =cut
-
-sub read {
-    my ($self, $file) = @_;
-    $self->{_infile} = $file if $file;
-
-    my $yaml = '';
-    my $line;
-
-    open(FH,'<',$self->{_infile}) or die "Can't open $self->{_infile}; $!\n";
-    while ($line = <FH>) {
-        next if ($line =~ /^\-{3,}/);
-        next if ($line =~ /^#/);
-        next if ($line =~ /^$/);
-        $yaml .= $line;
-    }
-    close(FH);
-    my $tmpyaml = Load($yaml);
-    @{$self}{keys %{$tmpyaml}} = values %{$tmpyaml}; # woo, hash slice
-}
 
 =head2 write
 
-Dump current configuration state to a YAML-formatted flat file.
+Dump current configuration state to a YAML-formatted flat
+file.
 
     $c->write;
 
-The file to be written is specified in the constructor call. See the
-C<new> method documentation for details.
+The file to be written is specified in the constructor call.
+See the C<new> method documentation for details.
 
 =cut
 
-sub write {
-    my $self = shift;
-    my %tmpyaml;
-
-    # strip out internal state parameters
-    while(my($k,$v) = each%{$self}) {
-        $tmpyaml{$k} = $v unless ($k =~ /^_/);
-    }
-
-    # write data out to file
-    open(FH,'>',$self->{_outfile}) or die "Can't open $self->{_outfile}: $!\n";
-    print FH Dump(\%tmpyaml);
-    close(FH);
-}
-
 =head1 DEPRECATED METHODS
 
-These methods have been superceded and will likely be removed in the
-next release.
+These methods have been superceded and will likely be
+removed in the next release.
 
 =head2 get
 
@@ -238,11 +255,6 @@ Returns the value of a parameter.
     print $c->get('foo');
 
 =cut
-
-sub get {
-    my ($self, $arg) = @_;
-    return $self->{$arg};
-}
 
 =head2 set
 
@@ -255,42 +267,60 @@ Sets the value of a parameter:
 
 =cut
 
-sub set {
-    my ($self, $key, $val) = @_;
-    $self->{$key} = $val;
-}
+=head1 COMPATABILITY WITH CONFIG::YAML
 
-=head1 AUTHOR
+This module should be able to work as a drop in replacement
+of L<Config::YAML>.
 
-Shawn Boyette (C<< <mdxi@cpan.org> >>)
+This code began as a quick post of the L<Config::YAML> 1.42
+code changing as little as possible to get YAML::Tiny
+working and the module passing all of the unit tests
+provided by its predecessor.
 
-Original implementation by Kirrily "Skud" Robert (as
-C<YAML::ConfigFile>).
+In future releases I plan on refactoring the methods to
+replacement some of its code with functionality already in
+YAML::Tiny. I also intend on removing the deprecated methods
+at some point also.
 
-=head1 BUGS
+My intention will be to maintain compatability with
+L<Config::YAML> using the original unit test.
+
+=head1 KNOWN ISSUES
 
 =over
 
 =item
 
-Config::YAML ignores the YAML document separation string (C<--->)
-because it has no concept of multiple targets for the data coming from
-a config file.
+Config::YAML::Tiny ignores the YAML document separation
+string (C<--->) because it has no concept of multiple
+targets for the data coming from a config file.
 
 =back
 
-Please report any bugs or feature requests to
-C<bug-yaml-configfile@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
+=head1 SUPPORT
 
-=head1 COPYRIGHT & LICENSE
+Bugs should be reported via the GitHub project issues
+tracking system:
+L<http://github.com/tima/perl-config-yaml-tiny/issues>.
 
-Copyright 2004 Shawn Boyette, All Rights Reserved.
+=head1 AUTHOR
+
+Timothy Appnel (<tima@cpan.org>)
+
+Originally based on Config::YAML by Shawn Boyette
+(<mdxi@cpan.org>) who based his original implementation off of
+C<YAML::ConfigFile> by Kirrily "Skud" Robert.
+
+=head1 SEE ALSO
+
+L<Config::YAML> L<YAML::Tiny>
+
+=head1 COPYRIGHT AND LICENCE
+
+Config::YAML:Tiny is Copyright 2010, Timothy Appnel, 
+tima@cpan.org unlessnoted otherwise. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
 =cut
-
-1; # End of Config::YAML
