@@ -1,0 +1,24 @@
+# Revision files.
+\.gitignore
+\.git
+
+# Hidden, temp and backup files.
+~$
+^\.#
+\.bak$
+\.old$
+\.swp$
+\.tmp$
+^\.DS_Store$
+^\._
+
+# Build process and distribution files
+^MANIFEST
+Makefile
+Makefile.PL
+^_build
+^build
+^Build.*$
+^blib/
+^pm_to_blib$
+
