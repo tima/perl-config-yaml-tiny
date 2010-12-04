@@ -1,7 +1,7 @@
 use Test::More no_plan;
-use Config::YAML;
+use Config::YAML::Tiny;
 
-my $c = Config::YAML->new(config => 't/test.yaml');
+my $c = Config::YAML::Tiny->new(config => 't/test.yaml');
 
 ok($c->{clobber} == 1, "This should always work if the previous tests did");
 

@@ -1,7 +1,7 @@
 use Test::More tests => 7;
-use Config::YAML;
+use Config::YAML::Tiny;
 
-my $c = Config::YAML->new(config => 't/test.yaml');
+my $c = Config::YAML::Tiny->new(config => 't/test.yaml');
 is($c->{clobber}, 1,   "This should always work if the previous tests did");
 is($c->get_clobber, 1, "OO value retreival works");
 $c->set_clobber(5);

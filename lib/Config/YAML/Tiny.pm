@@ -1,10 +1,8 @@
-package Config::YAML;
-
-# $Id: YAML.pm 41 2005-03-15 22:33:09Z mdxi $
+package Config::YAML::Tiny;
 
 use warnings;
 use strict;
-use YAML;
+use YAML::Tiny qw(Load Dump);
 
 use vars qw( $AUTOLOAD );
 
@@ -14,11 +12,11 @@ Config::YAML - Simple configuration automation
 
 =head1 VERSION
 
-Version 1.42
+Version 1.42.0
 
 =cut
 
-our $VERSION = '1.42';
+our $VERSION = '1.42.0';
 
 =head1 SYNOPSIS
 
@@ -131,7 +129,7 @@ previous example:
 
 =cut
 
-sub Config::YAML::AUTOLOAD {
+sub Config::YAML::Tiny::AUTOLOAD {
     no strict 'refs';
     my ($self, $newval) = @_;
 
@@ -187,7 +185,7 @@ sub read {
     my ($self, $file) = @_;
     $self->{_infile} = $file if $file;
 
-    my $yaml;
+    my $yaml = '';
     my $line;
 
     open(FH,'<',$self->{_infile}) or die "Can't open $self->{_infile}; $!\n";
@@ -198,7 +196,6 @@ sub read {
         $yaml .= $line;
     }
     close(FH);
-
     my $tmpyaml = Load($yaml);
     @{$self}{keys %{$tmpyaml}} = values %{$tmpyaml}; # woo, hash slice
 }
